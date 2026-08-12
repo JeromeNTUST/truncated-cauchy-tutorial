@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>截斷柯西跳躍擴散模型 - 教學互動網</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            scroll-behavior: smooth;
+        }
+        .math-block {
+            overflow-x: auto;
+            padding: 1rem;
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-item.active {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            border-right: 4px solid #1d4ed8;
+            font-weight: 600;
+        }
+    </style>
+
+    <!-- MathJax Configuration -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body class="text-slate-800 flex flex-col md:flex-row min-h-screen">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-1/4 lg:w-1/5 bg-white border-r border-slate-200 shadow-sm flex flex-col fixed md:sticky top-0 z-50 md:h-screen">
+        <div class="p-6 border-b border-slate-200">
+            <h1 class="text-xl font-bold text-blue-900 leading-tight">金融數學專題<br><span class="text-sm font-normal text-slate-500">Truncated Cauchy Model</span></h1>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4 space-y-1">
+            <button onclick="showTab('intro')" id="nav-intro" class="nav-item active w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="fas fa-home w-6 text-center"></i> 導論與核心精神
+            </button>
+            <button onclick="showTab('part1')" id="nav-part1" class="nav-item w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="fas fa-cube w-6 text-center"></i> 一、對稱截斷模型 (TC)
+            </button>
+            <button onclick="showTab('part2')" id="nav-part2" class="nav-item w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="fas fa-cubes w-6 text-center"></i> 二、非對稱截斷 (ATC)
+            </button>
+            <button onclick="showTab('part3')" id="nav-part3" class="nav-item w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="fas fa-search w-6 text-center"></i> 三、參數還原推導
+            </button>
+            <button onclick="showTab('part4')" id="nav-part4" class="nav-item w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="fas fa-code w-6 text-center"></i> 四、演算法實作
+            </button>
+        </nav>
+        <div class="p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 text-center">
+            對象：具備微積分基礎之大學生
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 md:p-10 lg:p-16 max-w-5xl mx-auto mt-40 md:mt-0 w-full">
+        
+        <!-- Tab: Intro -->
+        <section id="intro" class="tab-content active space-y-8">
+            <header class="mb-10">
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">為什麼我們需要「截斷」柯西分布？</h2>
+                <p class="text-lg text-slate-600 leading-relaxed">
+                    在財務工程中，標準常態分布往往無法捕捉金融市場「黑天鵝」事件（即極端報酬率，厚尾現象）。柯西分布 (Cauchy Distribution) 擁有完美的「厚尾」，但它有一個致命缺點：<strong class="text-red-500">它的變異數與平均值在微積分上是發散的（算不出來）！</strong>
+                </p>
+            </header>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
+                <h3 class="text-blue-800 font-bold mb-2"><i class="fas fa-lightbulb"></i> 本節學習地圖</h3>
+                <p class="text-blue-900 leading-relaxed">
+                    這份手稿的第二節展示了數學家如何解決這個問題：將柯西分布在正負 $B$ 的地方「切掉」（截斷）。<br>
+                    我們將沿著以下路線學習：<br>
+                    1. <b>建立基礎</b>：對稱截斷 (TC)<br>
+                    2. <b>升級裝備</b>：非對稱截斷 (ATC)，符合市場跌快漲慢的特性。<br>
+                    3. <b>解開謎題</b>：如何利用給定的市場數據（均值、變異數、偏度、峰度）反推模型的未知參數。<br>
+                    4. <b>落地應用</b>：將數學邏輯轉化為演算法。
+                </p>
+            </div>
+            <button onclick="showTab('part1')" class="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors w-full md:w-auto">
+                開始學習：對稱模型 <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </section>
+
+        <!-- Tab: Part 1 -->
+        <section id="part1" class="tab-content space-y-8">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-4">一、打造基礎：對稱截斷 Cauchy 分布 (TC)</h2>
+            
+            <!-- Definition 1 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-indigo-600 text-white px-6 py-3 font-semibold flex items-center">
+                    <i class="fas fa-book-open mr-3"></i> Definition 1 (對稱截斷 Cauchy 分布)
+                </div>
+                <div class="p-6 space-y-4">
+                    <p class="text-slate-700">給定 $\theta > 0, B > 0$，隨機變數 $X \sim TC(\theta, B)$ 的機率密度函數 (PDF) 定義為：</p>
+                    <div class="math-block text-lg text-center">
+                        $$f_{TC}(x;\theta,B)=\frac{1}{D\theta\left[1+(\frac{x}{\theta})^{2}\right]}1_{[-B,B]}(x)$$
+                    </div>
+                    <p class="text-slate-700">其中常數 $D = 2 \arctan(B/\theta)$ 是為了確保總機率為 1 的正規化常數。</p>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-lg text-yellow-900 border border-yellow-200 mt-4">
+                        <strong class="flex items-center"><i class="fas fa-comment-dots mr-2 text-yellow-600"></i> 白話說明：</strong>
+                        把原本無限延伸的 Cauchy 分布，在正負 B 的地方「切掉」（指示函數 $1_{[-B,B]}$）。這樣既保留了中間尖峰厚尾的形狀，又能保證期望值積分不會發散。
+                    </div>
+
+                    <div class="bg-green-50 p-4 rounded-lg text-green-900 border border-green-200 mt-4">
+                        <strong class="flex items-center"><i class="fas fa-calculator mr-2 text-green-600"></i> 微積分視角 (Calculus Insight)：</strong>
+                        為什麼 $D = 2 \arctan(B/\theta)$？<br>
+                        令 $z = x/\theta, dx = \theta dz$。積分 $\int_{-B}^{B} \frac{1}{1+(x/\theta)^2} dx = \theta \int_{-B/\theta}^{B/\theta} \frac{1}{1+z^2} dz$。
+                        回憶微積分：$\int \frac{1}{1+z^2} dz = \arctan(z)$。<br>
+                        代入上下限，剛好是 $\theta [\arctan(B/\theta) - \arctan(-B/\theta)] = 2\theta\arctan(B/\theta)$。
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proposition 2 & Corollary 3 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-teal-600 text-white px-6 py-3 font-semibold flex items-center">
+                    <i class="fas fa-lightbulb mr-3"></i> Proposition 2 & Corollary 3 (動差與統計特徵)
+                </div>
+                <div class="p-6 space-y-4">
+                    <p class="text-slate-700">因為 PDF 是一個對稱的偶函數 (Even Function)，所以：</p>
+                    <ul class="list-disc list-inside text-slate-700 ml-4">
+                        <li><b>奇數階動差為 0：</b> 期望值 $\mathbb{E}[X] = 0$，偏度 (Skewness) $= 0$。</li>
+                        <li><b>偶數階動差：</b> 可使用超幾何函數 $_2F_1$ 求解。</li>
+                    </ul>
+                    <p class="text-slate-700 mt-4">若定義相對形狀參數 $b = B/\theta$，變異數與峰度為：</p>
+                    <div class="math-block text-center">
+                        $$Var(X) = \theta^2 \left(\frac{b}{\arctan(b)} - 1\right)$$
+                        $$Kurt(X) = \frac{\arctan(b)[b^3 - 3b + 3\arctan(b)]}{3[b - \arctan(b)]^2}$$
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proposition 4 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-teal-600 text-white px-6 py-3 font-semibold flex items-center">
+                    <i class="fas fa-lightbulb mr-3"></i> Proposition 4 (可行峰度與參數唯一性)
+                </div>
+                <div class="p-6 space-y-4">
+                    <p class="text-slate-700">當給定目標變異數 $\sigma^2$ 與目標峰度 $\kappa$ 時，只要 $\kappa > 9/5$，就<strong class="text-indigo-600">必然存在且唯一</strong>一組參數 $(\theta, B)$。</p>
+                    <div class="bg-yellow-50 p-4 rounded-lg text-yellow-900 border border-yellow-200 mt-4">
+                        <strong class="flex items-center"><i class="fas fa-comment-dots mr-2 text-yellow-600"></i> 白話說明：</strong>
+                        這是給實務界的定心丸！它證明只要市場數據算出來的峰度大於 1.8，你就一定能找到唯一對應的參數。
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-between mt-8">
+                <button onclick="showTab('intro')" class="text-slate-500 hover:text-blue-600 font-medium transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> 上一章
+                </button>
+                <button onclick="showTab('part2')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-colors">
+                    下一章：非對稱模型 <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Tab: Part 2 -->
+        <section id="part2" class="tab-content space-y-8">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-4">二、升級裝備：非對稱截斷 (ATC)</h2>
+            <p class="text-lg text-slate-600">金融市場跌得快、漲得慢（存在負偏度）。對稱模型不夠用，所以要把模型拆開重組，變成非對稱的版本。</p>
+
+            <!-- Definition 5 & 6 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-indigo-600 text-white px-4 py-3 font-semibold flex items-center">
+                        <i class="fas fa-cube mr-2"></i> Def 5: 單邊積木 (HTC)
+                    </div>
+                    <div class="p-4">
+                        <p class="text-sm text-slate-700 mb-2">把對稱分布剖半，只拿大於零的那一半：</p>
+                        <div class="math-block text-sm">
+                            $$f_{HTC}(x) = \frac{1_{[0,B]}(x)}{\theta\arctan(b)[1+(x/\theta)^2]}$$
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-teal-600 text-white px-4 py-3 font-semibold flex items-center">
+                        <i class="fas fa-chart-line mr-2"></i> Prop 6: HTC的動差
+                    </div>
+                    <div class="p-4">
+                        <p class="text-sm text-slate-700 mb-2">利用微積分求出各階動差（備用）：</p>
+                        <div class="math-block text-sm">
+                            $$h_n(\theta, B) \equiv \mathbb{E}[\xi^n] = \theta^n c_n(b)$$
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Definition 7 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden border-l-4 border-l-purple-500">
+                <div class="bg-purple-600 text-white px-6 py-3 font-semibold flex items-center text-lg">
+                    <i class="fas fa-crown mr-3"></i> Definition 7 (核心：非對稱截斷 Cauchy 分布 ATC)
+                </div>
+                <div class="p-6 space-y-4">
+                    <p class="text-slate-700">我們用機率 $p$ 把「正向跳躍」和「負向跳躍」拼起來：</p>
+                    <div class="math-block text-center">
+                        $$
+                        X \triangleq \begin{cases}
+                        \xi^+, & \text{with probability } p, \\
+                        -\xi^-, & \text{with probability } 1-p;
+                        \end{cases}
+                        $$
+                    </div>
+                    <p class="text-slate-700">其中 $\xi^+ \sim HTC(\theta^+, B^+)$，$\xi^- \sim HTC(\theta^-, B^-)$。</p>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-lg text-yellow-900 border border-yellow-200">
+                        <strong class="flex items-center"><i class="fas fa-comment-dots mr-2 text-yellow-600"></i> 白話說明：</strong>
+                        正向和負向的大小（$\theta$）、極限邊界（$B$）都可以不一樣，完美模擬市場的不對稱性。
+                    </div>
+                </div>
+            </div>
+
+            <!-- Corollary 8 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-yellow-600 text-white px-6 py-3 font-semibold flex items-center">
+                    <i class="fas fa-layer-group mr-3"></i> Corollary 8 (ATC的動差)
+                </div>
+                <div class="p-6">
+                    <p class="text-slate-700">將正負兩邊的動差加權平均，第 $n$ 階原始動差為：</p>
+                    <div class="math-block text-center">
+                        $$M_n = p \cdot h_n(\theta^+, B^+) + (1-p)(-1)^n h_n(\theta^-, B^-)$$
+                    </div>
+                    <p class="text-slate-700 mt-2 text-sm text-gray-500">（進而可推導出均值、變異數、偏度與峰度的公式）</p>
+                </div>
+            </div>
+
+            <div class="flex justify-between mt-8">
+                <button onclick="showTab('part1')" class="text-slate-500 hover:text-blue-600 font-medium transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> 上一章
+                </button>
+                <button onclick="showTab('part3')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-colors">
+                    下一章：參數還原 <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Tab: Part 3 -->
+        <section id="part3" class="tab-content space-y-8">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-4">三、解開謎題：如何用市場數據反推參數？</h2>
+            
+            <div class="bg-rose-50 text-rose-900 p-6 rounded-lg border border-rose-200">
+                <h3 class="font-bold mb-2"><i class="fas fa-exclamation-triangle mr-2"></i> 數學難題：維度不匹配</h3>
+                <p>ATC 模型有 <strong>5 個未知參數</strong> ($p, \theta^+, \theta^-, B^+, B^-$)，但市場通常只給 <strong>4 個目標數字</strong>（均值、變異數、偏度、峰度）。這就像有5個變數卻只有4條方程式，無法解出唯一解。</p>
+                <p class="mt-2"><strong>作者的解法（降維打擊）：</strong> 規定正負兩邊要「等形狀」，即 $\frac{B^+}{\theta^+} = \frac{B^-}{\theta^-} = b$。把變數降回 4 個！</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Lemma 10 -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-teal-600 text-white px-4 py-3 font-semibold flex items-center">
+                        <i class="fas fa-key mr-2"></i> Lemma 10 (還原二點分量)
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <p class="text-sm text-slate-700">假設我們已經猜到形狀參數 $b$ 是多少，利用前三個目標（均值、變異數、偏度），構造二次方程式：</p>
+                        <div class="math-block text-sm">
+                            $$V(b) = q_2(b) - q_1(b)^2$$
+                            $$S(b) = \frac{q_3(b) - q_1(b)q_2(b)}{V(b)}$$
+                            $$P(b) = \frac{q_1(b)q_3(b) - q_2(b)^2}{V(b)}$$
+                        </div>
+                        <p class="text-sm font-semibold text-blue-700">白話說明：這步能瞬間把正負跳躍的大小 ($\theta^+, \theta^-$) 和發生機率 ($p$) 全算出來！</p>
+                    </div>
+                </div>
+
+                <!-- Proposition 11 -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-teal-600 text-white px-4 py-3 font-semibold flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i> Prop 11 (精確可行性)
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <p class="text-sm text-slate-700">最後一步，拿第4個目標「峰度」來比對：</p>
+                        <div class="math-block text-sm">
+                            $$\mathcal{K}_m(\eta; b^*) = \kappa$$
+                        </div>
+                        <p class="text-sm font-semibold text-blue-700">白話說明：透過電腦尋找，找出讓模型峰度剛好等於市場峰度 $\kappa$ 的那個唯一的 $b^*$。找到了，全部參數就解開了。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Corollaries -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-yellow-600 text-white px-6 py-3 font-semibold flex items-center">
+                    <i class="fas fa-shield-alt mr-3"></i> Corollary 12 & 13 (防呆機制與特例)
+                </div>
+                <div class="p-6">
+                    <ul class="list-disc list-inside space-y-2 text-slate-700">
+                        <li><b>實務防呆 (Cor 12)：</b> 當平均值固定後，偏度是有極限的。程式可以先檢查輸入數據，避免陷入無解死胡同。</li>
+                        <li><b>完美對稱 (Cor 13)：</b> 若平均值為 0，偏度不受限，且偏度對峰度的影響會變成優美的二次曲線。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="flex justify-between mt-8">
+                <button onclick="showTab('part2')" class="text-slate-500 hover:text-blue-600 font-medium transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> 上一章
+                </button>
+                <button onclick="showTab('part4')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-colors">
+                    下一章：演算法實作 <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Tab: Part 4 -->
+        <section id="part4" class="tab-content space-y-8">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-4">四、落地應用：演算法實作 (Algorithm 1)</h2>
+            <p class="text-lg text-slate-600">這就是實務上的「電腦計算操作手冊」。它將前面的微積分與代數邏輯化為程式步驟：</p>
+            
+            <div class="bg-slate-900 rounded-xl shadow-lg overflow-hidden text-slate-300 font-mono text-sm mt-6">
+                <div class="bg-slate-800 px-4 py-2 border-b border-slate-700 flex space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">1</span>
+                        <span class="text-green-400">// 步驟一：防呆檢查 (Cor 12)</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">2</span>
+                        <span>Check if targets $(\mu, \sigma, \eta, \kappa)$ are valid. If not, STOP.</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">3</span>
+                        <span class="text-green-400">// 步驟二：撒網尋根 (Prop 11)</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">4</span>
+                        <span class="text-blue-400">for each</span> trial value of <span class="text-purple-400">$b$</span> <span class="text-blue-400">do</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">5</span>
+                        <span class="ml-4">Compute 2-point component moments $V(b), S(b), P(b)$</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">6</span>
+                        <span class="ml-4">Evaluate error function: $f(b) = \mathcal{K}_m(\eta; b) - \kappa$</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">7</span>
+                        <span class="text-blue-400">end for</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">8</span>
+                        <span>Find root <span class="text-purple-400">$b^*$</span> where $f(b^*) = 0$</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">9</span>
+                        <span class="text-green-400">// 步驟三：全面解碼 (Lemma 10)</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">10</span>
+                        <span>Recover $p, \theta^+, \theta^-, B^+, B^-$ using $b^*$</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">11</span>
+                        <span class="text-green-400">// 步驟四：品管驗收</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-slate-500 w-8 text-right mr-4 select-none">12</span>
+                        <span>Recompute statistics from recovered parameters to ensure accuracy.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-start mt-8">
+                <button onclick="showTab('part3')" class="text-slate-500 hover:text-blue-600 font-medium transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> 上一章
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Tab switching logic
+        function showTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            // Show targeted content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Update active state on nav items
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'bg-eff6ff', 'text-1d4ed8', 'border-r-4');
+                el.classList.add('text-slate-600');
+            });
+            
+            const activeNav = document.getElementById('nav-' + tabId);
+            if(activeNav) {
+                activeNav.classList.add('active');
+                activeNav.classList.remove('text-slate-600');
+            }
+            
+            // Scroll to top on mobile
+            if (window.innerWidth < 768) {
+                window.scrollTo(0, 0);
+            }
+        }
+    </script>
+</body>
+</html>
